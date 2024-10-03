@@ -370,13 +370,15 @@ def compose(addr, num_posts):
   print(idx, "compose posts finished")
 
 if __name__ == '__main__':
+  print('RUNNING SETUP SOCIAL GRAPH')
   with open('social-network/src/datasets/social-graph/socfb-Reed98/socfb-Reed98.mtx', 'r') as file:
     nodes = getNodes(file)
     edges = getEdges(file)
 
   addr = "http://127.0.0.1:30001"
 
+  LIMIT = 1000
   register(addr, nodes)
-  follow(addr, edges)
+  follow(addr, edges[:LIMIT])
   compose_for_each(addr)
-  compose(addr, 20000)
+  compose(addr, LIMIT)

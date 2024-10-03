@@ -270,7 +270,7 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
 def social_network():
     def deploy():
         print('ON DEPLOY')
-        kubectl_apply(['social-network/1.json', 'social-network/2.json'], 'social-network', 31)
+        kubectl_apply(['social-network/1.json', 'social-network/2.json'], 'social-network', 29)
         time.sleep(3)
         # populate the database, see section A.7 in the paper
         subprocess.run([sys.executable, 'social-network/src/scripts/setup_social_graph_init_data_sync.py'], check=True)
