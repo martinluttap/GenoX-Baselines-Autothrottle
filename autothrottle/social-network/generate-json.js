@@ -189,7 +189,7 @@ const doc1 = {
     },
 
     ...deployment_service('jaeger', {
-      nodeName: worker3,
+      nodeName: worker1,
       containers: [
         {
           name: 'jaeger',
@@ -207,7 +207,7 @@ const doc1 = {
     }),
 
     ...deployment_service('nginx-thrift', {
-      nodeName: worker4,
+      nodeName: worker1,
       containers: [
         {
           name: 'nginx-thrift',
@@ -221,43 +221,43 @@ const doc1 = {
       ],
     }),
 
-    ...cpp(worker3, 'compose-post-service', 'ComposePostService'),
-    ...redis(worker3, 'compose-post-redis'),
+    ...cpp(worker1, 'compose-post-service', 'ComposePostService'),
+    ...redis(worker1, 'compose-post-redis'),
 
     ...cpp(worker1, 'home-timeline-service', 'HomeTimelineService'),
-    ...redis(worker3, 'home-timeline-redis'),
+    ...redis(worker1, 'home-timeline-redis'),
 
-    ...cpp(worker3, 'media-service', 'MediaService'),
+    ...cpp(worker1, 'media-service', 'MediaService'),
 
-    ...cpp(worker2, 'post-storage-service', 'PostStorageService'),
-    ...memcached(worker3, 'post-storage-memcached'),
-    ...mongodb(worker3, 'post-storage-mongodb'),
+    ...cpp(worker1, 'post-storage-service', 'PostStorageService'),
+    ...memcached(worker1, 'post-storage-memcached'),
+    ...mongodb(worker1, 'post-storage-mongodb'),
 
-    ...cpp(worker3, 'social-graph-service', 'SocialGraphService'),
-    ...mongodb(worker3, 'social-graph-mongodb'),
-    ...redis(worker3, 'social-graph-redis'),
+    ...cpp(worker1, 'social-graph-service', 'SocialGraphService'),
+    ...mongodb(worker1, 'social-graph-mongodb'),
+    ...redis(worker1, 'social-graph-redis'),
 
-    ...cpp(worker3, 'text-service', 'TextService'),
+    ...cpp(worker1, 'text-service', 'TextService'),
 
-    ...cpp(worker3, 'unique-id-service', 'UniqueIdService'),
+    ...cpp(worker1, 'unique-id-service', 'UniqueIdService'),
 
-    ...cpp(worker3, 'url-shorten-service', 'UrlShortenService'),
+    ...cpp(worker1, 'url-shorten-service', 'UrlShortenService'),
 
-    ...cpp(worker3, 'user-mention-service', 'UserMentionService'),
+    ...cpp(worker1, 'user-mention-service', 'UserMentionService'),
 
-    ...cpp(worker3, 'user-service', 'UserService'),
-    ...memcached(worker3, 'user-memcached'),
-    ...mongodb(worker3, 'user-mongodb'),
+    ...cpp(worker1, 'user-service', 'UserService'),
+    ...memcached(worker1, 'user-memcached'),
+    ...mongodb(worker1, 'user-mongodb'),
 
-    ...cpp(worker3, 'user-timeline-service', 'UserTimelineService'),
-    ...mongodb(worker3, 'user-timeline-mongodb'),
-    ...redis(worker3, 'user-timeline-redis'),
+    ...cpp(worker1, 'user-timeline-service', 'UserTimelineService'),
+    ...mongodb(worker1, 'user-timeline-mongodb'),
+    ...redis(worker1, 'user-timeline-redis'),
 
-    ...rabbitmq(worker3, 'write-home-timeline-rabbitmq', 'WRITE-HOME-TIMELINE-RABBITMQ'),
+    ...rabbitmq(worker1, 'write-home-timeline-rabbitmq', 'WRITE-HOME-TIMELINE-RABBITMQ'),
 
-    ...rabbitmq(worker3, 'write-user-timeline-rabbitmq', 'WRITE-USER-TIMELINE-RABBITMQ'),
+    ...rabbitmq(worker1, 'write-user-timeline-rabbitmq', 'WRITE-USER-TIMELINE-RABBITMQ'),
 
-    ...multi_deployment_service('media-filter-service', [worker1, worker2, worker3], {
+    ...multi_deployment_service('media-filter-service', [worker1], {
       containers: [
         {
           name: 'media-filter-service',
@@ -270,7 +270,7 @@ const doc1 = {
     }),
 
     ...deployment_service('text-filter-service', {
-      nodeName: worker3,
+      nodeName: worker1,
       containers: [
         {
           name: 'text-filter-service',
@@ -289,10 +289,10 @@ const doc2 = {
   apiVersion: 'v1',
   kind: 'List',
   items: [
-    ...cpp(worker3, 'write-home-timeline-service', 'WriteHomeTimelineService'),
-    ...cpp(worker3, 'write-user-timeline-service', 'WriteUserTimelineService'),
+    ...cpp(worker1, 'write-home-timeline-service', 'WriteHomeTimelineService'),
+    ...cpp(worker1, 'write-user-timeline-service', 'WriteUserTimelineService'),
   ],
 };
 
-fs.writeFileSync('social-network/1.json', JSON.stringify(doc1, null, 2) + '\n');
-fs.writeFileSync('social-network/2.json', JSON.stringify(doc2, null, 2) + '\n');
+fs.writeFileSync('1.json', JSON.stringify(doc1, null, 2) + '\n');
+fs.writeFileSync('2.json', JSON.stringify(doc2, null, 2) + '\n');

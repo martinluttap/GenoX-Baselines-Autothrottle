@@ -209,12 +209,13 @@ class VwTower:
                 else:
                     updates[k] = (target2,)
 
+        print(f'Updates at t={t}: stats={stats}, updates={updates}')
         return updates
-
 
 def kubectl_apply(k8s_json, namespace, pod_count):
     def all_ready(output):
         l = output.splitlines()
+        print(f'Currently {len(l)} pods!')
         if len(l) != pod_count:
             return False
         for i in l:
@@ -231,7 +232,7 @@ def kubectl_apply(k8s_json, namespace, pod_count):
         k8s_json = [k8s_json]
     for i, p in enumerate(k8s_json):
         if i:
-            time.sleep(60)
+            time.sleep(1)
         subprocess.run(['kubectl', 'apply', '-f', p],
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True)
     while True:
@@ -319,6 +320,7 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
     pathlib.Path('request.log').unlink(missing_ok=True)
     deploy()
 
+    print('Past dpeloy')
     node_sockets = {}
     for node, node_components in nodes.items():
         node_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import collections
+import datetime
 import json
 import pathlib
 import socket
@@ -61,6 +62,7 @@ def set_cpu_limit(pod_map, name, limit, period=0.1):
         assert quota_us >= 1000
     stat_path(pod_map, name, 'cpu.cfs_period_us').write_text(str(period_us))
     stat_path(pod_map, name, 'cpu.cfs_quota_us').write_text(str(quota_us))
+    print(f'{datetime.datetime.now()} Written period={period_us},quota={quota_us} to name={name},(qos,uid)={pod_map[name]}')
 
 
 class ConstScaler:
@@ -103,6 +105,7 @@ class K8sCPUScalerBase:
         if len(self.recommendations) > self.recommend_len:
             self.recommendations.pop(0)
         self.limit = max(self.recommendations)
+        print(f'Scaling to {self.limit}')
 
     def update(self, target):
         self.target = target
@@ -237,9 +240,11 @@ def run(control, namespace, components, scalers):
                 stats[name][f'cpu_stat.{k}'] = v
 
         end_time = time.perf_counter()
+        end_limit = (t + (-t * 1000 % 100 / 1000))
         if end_time > t + (-t * 1000 % 100 / 1000):
             late_end_time += 1
 
+        print(f'Components={components},files={files},stats={stats},end_limit={end_limit}')
         for name in components:
             stats[name]['cpu_usage'] = int(stats[name]['cpu_usage']) / 1e9
             stats[name]['cpu_stat.nr_periods'] = int(stats[name]['cpu_stat.nr_periods'])
