@@ -20,7 +20,7 @@ random.seed(time.time())
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-image_dir  = Path('/root/social-network/src/wrk2/scripts/social-network/base64_images')
+image_dir  = Path('/root/2024-ec-rep_autothrottle/autothrottle/social-network/src/wrk2/scripts/social-network/base64_images')
 image_data = {}
 image_names = []
 

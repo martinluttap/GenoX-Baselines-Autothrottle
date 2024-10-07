@@ -377,7 +377,7 @@ if __name__ == '__main__':
 
   addr = "http://127.0.0.1:30001"
 
-  LIMIT = 1000
+  LIMIT = 100
   register(addr, nodes)
   follow(addr, edges[:LIMIT])
   compose_for_each(addr)

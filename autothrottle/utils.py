@@ -12,6 +12,8 @@ import time
 import traceback
 import vowpalwabbit
 
+from datetime import datetime as dt
+
 
 def load_trace(p):
     return list(map(int, pathlib.Path(p).read_text().splitlines()))
@@ -114,7 +116,8 @@ class VwTower:
                 self.samples.append((self.last_rps, self.last_action, self.last_action_p, latency, allocation))
 
         train_samples = list(self.samples)
-
+        print(f'At {t}:stats:{stats}, samples[last_rps|last_action|last_action_p|latency|allocation]:{train_samples}')
+        print(f'At {t}: targets={self.targets}')
         try:
             min_allocation = min(i[4] for i in train_samples if i[3] <= self.slo)
             max_allocation = max(i[4] for i in train_samples if i[3] <= self.slo)
@@ -138,6 +141,7 @@ class VwTower:
                     cost = (latency - min_latency) / (max_latency - min_latency) + 2
                 except ZeroDivisionError:
                     cost = 2.5
+            print(f'At t={t}, cost={cost}, alloc={allocation}, max_alloc={max_allocation}, min_alloc={min_allocation}, latency={latency}, max_latency={max_latency}, min_latency={min_latency}')
             train_samples[i] = (rps, action, action_p, cost)
 
         def median(l):
@@ -148,6 +152,8 @@ class VwTower:
                 return l[len(l) // 2]
             else:
                 return (l[len(l) // 2 - 1] + l[len(l) // 2]) / 2
+            
+        ## What are these things? 
         sample_categories = collections.defaultdict(lambda: collections.defaultdict(list))
         for i in train_samples:
             action = i[1]
@@ -163,6 +169,8 @@ class VwTower:
                 train_samples.append(random.choice(aggregated_samples))
 
         vw = vowpalwabbit.Workspace(f'--cb_explore {len(self.targets) ** 2} --epsilon 0 -l {self.learning_rate} --nn 3 --quiet')
+        print(f't={dt.now().timestamp()},cb_explore={len(self.targets)**2},epsilon=0,learning_rate={self.learning_rate},nn=3,quiet=true')
+        print(f't={dt.now().timestamp()},train_samples={train_samples}')
         for rps, action, action_p, cost in train_samples:
             vw.learn(f'{action+1}:{cost}:{action_p} | rps:{rps}')
 
@@ -170,6 +178,8 @@ class VwTower:
         distribution = vw.predict(f'| rps:{rps}')
         action = numpy.random.choice(len(distribution), p=numpy.array(distribution) / sum(distribution))
         action_p = distribution[action]
+
+        print(f'At {t} got: rps={rps},distribution={distribution},action={action},action_p={action_p}')
 
         vw.finish()
 
@@ -201,7 +211,9 @@ class VwTower:
 
         target1 = self.targets[action // len(self.targets)]
         target2 = self.targets[action % len(self.targets)]
+        print(f'At {t}: target1: {target1}, target2: {target2}')
         updates = {}
+        print(scalers.items())
         for k, v in scalers.items():
             if v['type'] == self.scaler:
                 if k in self.target1components:
@@ -393,7 +405,6 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
                             print('empty local stats')
                             do_tower = False
                     stats['_tower']['allocation'] = allocation
-                    print('fetch all stats done')
 
                 if do_tower:
                     tower_updates = tower(t, stats, scalers)

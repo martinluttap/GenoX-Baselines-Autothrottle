@@ -244,7 +244,6 @@ def run(control, namespace, components, scalers):
         if end_time > t + (-t * 1000 % 100 / 1000):
             late_end_time += 1
 
-        print(f'Components={components},files={files},stats={stats},end_limit={end_limit}')
         for name in components:
             stats[name]['cpu_usage'] = int(stats[name]['cpu_usage']) / 1e9
             stats[name]['cpu_stat.nr_periods'] = int(stats[name]['cpu_stat.nr_periods'])
@@ -259,6 +258,7 @@ def run(control, namespace, components, scalers):
 
         for name, scaler in scalers.items():
             limit = scaler(t, stats[name])
+            print(f'At t={t}, scaler={name}, limit={limit}')
             if limit is not None:
                 limit = max(0.01, limit)
                 if limits[name] is not None:
