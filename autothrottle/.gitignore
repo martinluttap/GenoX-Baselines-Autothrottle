@@ -6,4 +6,5 @@ tmp/
 *.log
 *.csv
 *.json
+*.swp
 rps.txt

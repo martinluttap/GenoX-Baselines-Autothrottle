@@ -156,8 +156,10 @@ class CaptainScaler:
         self.last_t = t
         self.last_stats = stats
         throttled_rate = statistics.mean(self.throttled_history)
+        # Multiplicative scaleup 
+        # a = 3
         if throttled_rate > 3 * self.target and self.last_scale_down:
-            self.limit = 2 * self.last_limit - self.limit
+            self.limit = 2 * self.last_limit - self.limit # 
             self.margin += (throttled_rate - self.target)
             self.throttled_history = [0 for _ in range(int(10 * self.period))]
             self.last_scale_down = False
@@ -250,12 +252,17 @@ def run(control, namespace, components, scalers):
             stats[name]['cpu_stat.nr_throttled'] = int(stats[name]['cpu_stat.nr_throttled'])
             stats[name]['cpu_stat.throttled_time'] = int(stats[name]['cpu_stat.throttled_time']) / 1e9
 
+            cpu_usage: float = stats[name]['cpu_usage']
+            nr_periods: int= stats[name]['cpu_stat.nr_periods']
+            nr_throttled: int = int(stats[name]['cpu_stat.nr_throttled'])
+            throttled_time: float = (stats[name]['cpu_stat.throttled_time']) / 1e9
+            print(f't={datetime.datetime.now()},name={name},cpu_usage={cpu_usage},nr_periods={nr_periods},nr_throttled={nr_throttled},throttled_time={throttled_time}')
+
         if control['update']:
             for k, v in control['update'].items():
                 if k in scalers:
                     scalers[k].update(*v)
             control['update'] = {}
-
         for name, scaler in scalers.items():
             limit = scaler(t, stats[name])
             print(f'At t={t}, scaler={name}, limit={limit}')
