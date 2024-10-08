@@ -12,8 +12,6 @@ import time
 import traceback
 import vowpalwabbit
 
-from datetime import datetime as dt
-
 
 def load_trace(p):
     return list(map(int, pathlib.Path(p).read_text().splitlines()))
@@ -59,13 +57,16 @@ class ExploreTower:
             self.explore_count[i[1]] += 1
         self.stage = -warmup - 1
         self.action = None
+        print(f'Initialized at {datetime.datetime.now()},scaler={scaler},targets={targets},target1components={target1components},explore_count={self.explore_count},stage={self.stage},action={self.action}')
 
     def __call__(self, t, stats, scalers):
         if self.stage < 0:
             self.stage += 1
+            print(f'{self} at t={t}, stage={self.stage=},stats={json.dumps(stats, indent=4)},scalers=[{", ".join(scalers)}], return {{}}')
             return {}
 
         if self.stage == 0:
+            print(f'{self} at t={t} stage 0-> 1,stats={json.dumps(stats, indent=4)},scalers=[{", ".join(scalers)}], return {{}}')
             self.stage = 1
             min_explore_count = min(self.explore_count.values())
             actions_with_min_explore_count = [k for k, v in self.explore_count.items() if v == min_explore_count]
@@ -87,6 +88,7 @@ class ExploreTower:
             self.stage = 0
             stats['_tower']['action'] = self.action
             stats['_tower']['action_p'] = 1 / len(self.targets) ** 2
+            print(f'{self} at t={t} stage 1->0,stats={json.dumps(stats, indent=4)},scalers=[{", ".join(scalers)}], return {{}}')
             return {}
 
 
@@ -116,8 +118,7 @@ class VwTower:
                 self.samples.append((self.last_rps, self.last_action, self.last_action_p, latency, allocation))
 
         train_samples = list(self.samples)
-        print(f'At {t}:stats:{stats}, samples[last_rps|last_action|last_action_p|latency|allocation]:{train_samples}')
-        print(f'At {t}: targets={self.targets}')
+
         try:
             min_allocation = min(i[4] for i in train_samples if i[3] <= self.slo)
             max_allocation = max(i[4] for i in train_samples if i[3] <= self.slo)
@@ -141,7 +142,6 @@ class VwTower:
                     cost = (latency - min_latency) / (max_latency - min_latency) + 2
                 except ZeroDivisionError:
                     cost = 2.5
-            print(f'At t={t}, cost={cost}, alloc={allocation}, max_alloc={max_allocation}, min_alloc={min_allocation}, latency={latency}, max_latency={max_latency}, min_latency={min_latency}')
             train_samples[i] = (rps, action, action_p, cost)
 
         def median(l):
@@ -152,8 +152,6 @@ class VwTower:
                 return l[len(l) // 2]
             else:
                 return (l[len(l) // 2 - 1] + l[len(l) // 2]) / 2
-            
-        ## What are these things? 
         sample_categories = collections.defaultdict(lambda: collections.defaultdict(list))
         for i in train_samples:
             action = i[1]
@@ -169,8 +167,6 @@ class VwTower:
                 train_samples.append(random.choice(aggregated_samples))
 
         vw = vowpalwabbit.Workspace(f'--cb_explore {len(self.targets) ** 2} --epsilon 0 -l {self.learning_rate} --nn 3 --quiet')
-        print(f't={dt.now().timestamp()},cb_explore={len(self.targets)**2},epsilon=0,learning_rate={self.learning_rate},nn=3,quiet=true')
-        print(f't={dt.now().timestamp()},train_samples={train_samples}')
         for rps, action, action_p, cost in train_samples:
             vw.learn(f'{action+1}:{cost}:{action_p} | rps:{rps}')
 
@@ -178,8 +174,6 @@ class VwTower:
         distribution = vw.predict(f'| rps:{rps}')
         action = numpy.random.choice(len(distribution), p=numpy.array(distribution) / sum(distribution))
         action_p = distribution[action]
-
-        print(f'At {t} got: rps={rps},distribution={distribution},action={action},action_p={action_p}')
 
         vw.finish()
 
@@ -211,9 +205,7 @@ class VwTower:
 
         target1 = self.targets[action // len(self.targets)]
         target2 = self.targets[action % len(self.targets)]
-        print(f'At {t}: target1: {target1}, target2: {target2}')
         updates = {}
-        print(scalers.items())
         for k, v in scalers.items():
             if v['type'] == self.scaler:
                 if k in self.target1components:
@@ -221,7 +213,7 @@ class VwTower:
                 else:
                     updates[k] = (target2,)
 
-        print(f'Updates at t={t}: stats={stats}, updates={updates}')
+        print(f'Updates at t={t}: stats={json.dumps(stats, indent=4)}, updates={json.dumps(updates, indent=4)}')
         return updates
 
 def kubectl_apply(k8s_json, namespace, pod_count):
@@ -281,7 +273,7 @@ def with_locust(temp_dir, locustfile, url, workers):
     ]
     worker_ps = []
     for i in range(workers):
-        worker_ps.append(subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL))
+        worker_ps.append(subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
 
     args = [
         'locust',
@@ -293,7 +285,7 @@ def with_locust(temp_dir, locustfile, url, workers):
         '--csv', temp_dir/'locust',
         '--csv-full-history',
     ]
-    master_p = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+    master_p = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     time.sleep(1)
     return master_p, worker_ps
@@ -370,10 +362,11 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
                 time.sleep(tt)
                 if p.poll() is not None:
                     break
-
+                
                 stats = collections.defaultdict(dict)
                 try:
                     locust_stats = parse_locust_stats_history(temp_dir)
+                    print(f'At {t}, locust_stats={json.dumps(locust_stats, indent=4)}')
                     if locust_stats[-1][0] != locust_t:
                         locust_t = locust_stats[-1][0]
                         stats['_tower'] = locust_stats[-1][1]
@@ -381,10 +374,11 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
                     print('parse_locust_stats_history failed')
                     traceback.print_exc()
 
+                print(f'At t={t}, tower see stats={json.dumps(stats, indent=4)}')
                 do_tower = False
                 if stats:
                     do_tower = True
-                    print('fetch all stats')
+                    print(f'At={t}, fetch all stats')
                     for node_socket in node_sockets.values():
                         node_socket.write(json.dumps({
                             'method': 'stats',
@@ -396,6 +390,7 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
                         data = json.loads(line)
                         assert data['ok']
                         local_stats.update(data['stats'])
+                    print(f'At={t}, tower got stats {json.dumps(data["stats"], indent=4)}')
                     allocation = 0
                     for component in scalers:
                         l = [i[1]['scaler.limit'] for i in local_stats[component]]
@@ -405,8 +400,10 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
                             print('empty local stats')
                             do_tower = False
                     stats['_tower']['allocation'] = allocation
+                    print(f'At={t}, fetch all stats done')
 
                 if do_tower:
+                    print(f'At={t}, call tower')
                     tower_updates = tower(t, stats, scalers)
                     if tower_updates:
                         print('tower update')
@@ -423,7 +420,7 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
                         print('tower update done')
 
                 if '_tower' in stats:
-                    print(stats['_tower'])
+                    print(json.dumps(stats['_tower'], indent=4))
                 for name in stats:
                     stats_history[name].append((t + monotonic_base, stats[name]))
 

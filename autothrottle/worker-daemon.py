@@ -305,6 +305,7 @@ def process_client(client_socket):
         while True:
             line = client_socket.readline()
             data = json.loads(line)
+            print(f'At t={datetime.datetime.now()}, from master={data}')
             if data['method'] == 'update':
                 control['update'] = data['update']
                 client_socket.write(json.dumps({'ok': True}) + '\n')

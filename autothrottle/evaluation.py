@@ -44,7 +44,7 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
     namespace = name
     components = sorted(sum(nodes.values(), []))
     locust_workers = 8
-    warmup_minutes = 5  # see section A.7 in the paper
+    warmup_minutes = 1  # see section A.7 in the paper
     warmup_seconds = warmup_minutes * 60
     initial_limit = 32
     tower_targets = [0.0, 0.02, 0.04, 0.06, 0.1, 0.15, 0.2, 0.25, 0.3]  # see section 4 in the paper
@@ -159,7 +159,7 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
         elif isinstance(trace_name, int):
             workload_name = 'constant'
             # trace = [trace_name] * 3600 
-            trace = [trace_name] * 180 # 3 minutes
+            trace = [trace_name] * 60 # 1 minute
         else:
             raise ValueError
         warmup = []
