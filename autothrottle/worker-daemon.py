@@ -261,11 +261,13 @@ def run(control, namespace, components, scalers):
         if control['update']:
             for k, v in control['update'].items():
                 if k in scalers:
+                    print(f'At t={t}, scaler={k}, control.update={v}')
                     scalers[k].update(*v)
             control['update'] = {}
         for name, scaler in scalers.items():
+            print(f'At t={t}, calling scaler for {name}, target={scaler.target} ...')
             limit = scaler(t, stats[name])
-            print(f'At t={t}, scaler={name}, limit={limit}')
+            print(f'At t={t}, scaler={name}, target={scaler.target}, limit={limit}, usage_history={scaler.usage_history}, tr_history={scaler.throttled_history}')
             if limit is not None:
                 limit = max(0.01, limit)
                 if limits[name] is not None:

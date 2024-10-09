@@ -73,8 +73,10 @@ class ExploreTower:
             print(f'{min_explore_count=}, {len(actions_with_min_explore_count)=}')
             self.action = random.choice(actions_with_min_explore_count)
             self.explore_count[self.action] += 1
-            target1 = self.targets[self.action // len(self.targets)]
-            target2 = self.targets[self.action % len(self.targets)]
+            # target1 = self.targets[self.action // len(self.targets)]
+            # target2 = self.targets[self.action % len(self.targets)]
+            target1 = 0.0
+            target2 = 0.0
             updates = {}
             for k, v in scalers.items():
                 if v['type'] == self.scaler:
@@ -203,8 +205,10 @@ class VwTower:
         self.last_action = action
         self.last_action_p = action_p
 
-        target1 = self.targets[action // len(self.targets)]
-        target2 = self.targets[action % len(self.targets)]
+        # target1 = self.targets[action // len(self.targets)]
+        # target2 = self.targets[action % len(self.targets)]
+        target1 = 0.0
+        target2 = 0.0
         updates = {}
         for k, v in scalers.items():
             if v['type'] == self.scaler:
@@ -390,7 +394,7 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
                         data = json.loads(line)
                         assert data['ok']
                         local_stats.update(data['stats'])
-                    print(f'At={t}, tower got stats {json.dumps(data["stats"], indent=4)}')
+                    print(f'At={t}, tower got stats {json.dumps(data["stats"])}, local={json.dumps(data["stats"])}')
                     allocation = 0
                     for component in scalers:
                         l = [i[1]['scaler.limit'] for i in local_stats[component]]
@@ -412,6 +416,7 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
                                 'method': 'update',
                                 'update': tower_updates,
                             }) + '\n')
+                            print(f'At={t}, tower writing update={json.dumps(tower_updates, indent=4)}')
                             node_socket.flush()
                         for node_socket in node_sockets.values():
                             line = node_socket.readline()

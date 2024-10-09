@@ -8,11 +8,11 @@ import time
 import json
 
 import locust.stats
-locust.stats.CONSOLE_STATS_INTERVAL_SEC = 600
-locust.stats.HISTORY_STATS_INTERVAL_SEC = 60
-locust.stats.CSV_STATS_INTERVAL_SEC = 60
-locust.stats.CSV_STATS_FLUSH_INTERVAL_SEC = 60
-locust.stats.CURRENT_RESPONSE_TIME_PERCENTILE_WINDOW = 60
+locust.stats.CONSOLE_STATS_INTERVAL_SEC = 50
+locust.stats.HISTORY_STATS_INTERVAL_SEC = 5
+locust.stats.CSV_STATS_INTERVAL_SEC = 5
+locust.stats.CSV_STATS_FLUSH_INTERVAL_SEC = 5
+locust.stats.CURRENT_RESPONSE_TIME_PERCENTILE_WINDOW = 5
 locust.stats.PERCENTILES_TO_REPORT = [0.50, 0.80, 0.90, 0.95, 0.98, 0.99, 0.995, 0.999, 1.0]
 
 random.seed(time.time())
