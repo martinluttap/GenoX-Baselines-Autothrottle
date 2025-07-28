@@ -319,22 +319,22 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
     pathlib.Path('request.log').unlink(missing_ok=True)
     deploy()
 
-    node_sockets = {}
-    for node, node_components in nodes.items():
-        node_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        node_socket.connect((node, 12198))
-        node_sockets[node] = node_socket.makefile('rw')
-        node_sockets[node].write(json.dumps({
-            'method': 'start',
-            'namespace': namespace,
-            'components': node_components,
-            'scalers': {i: scalers[i] for i in node_components if i in scalers},
-        }) + '\n')
-        node_sockets[node].flush()
-    for node_socket in node_sockets.values():
-        line = node_socket.readline()
-        data = json.loads(line)
-        assert data['ok']
+    # node_sockets = {}
+    # for node, node_components in nodes.items():
+    #     node_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #     node_socket.connect((node, 12198))
+    #     node_sockets[node] = node_socket.makefile('rw')
+    #     node_sockets[node].write(json.dumps({
+    #         'method': 'start',
+    #         'namespace': namespace,
+    #         'components': node_components,
+    #         'scalers': {i: scalers[i] for i in node_components if i in scalers},
+    #     }) + '\n')
+    #     node_sockets[node].flush()
+    # for node_socket in node_sockets.values():
+    #     line = node_socket.readline()
+    #     data = json.loads(line)
+    #     assert data['ok']
     print('all nodes started')
 
     time_ = datetime.datetime.utcnow().isoformat() + 'Z'
@@ -368,69 +368,69 @@ def benchmark(output_dir, namespace, locustfile, url, nodes, deploy, teardown, s
                     traceback.print_exc()
 
                 do_tower = False
-                if stats:
-                    do_tower = True
-                    print('fetch all stats')
-                    for node_socket in node_sockets.values():
-                        node_socket.write(json.dumps({
-                            'method': 'stats',
-                        }) + '\n')
-                        node_socket.flush()
-                    local_stats = {}
-                    for node_socket in node_sockets.values():
-                        line = node_socket.readline()
-                        data = json.loads(line)
-                        assert data['ok']
-                        local_stats.update(data['stats'])
-                    allocation = 0
-                    for component in scalers:
-                        l = [i[1]['scaler.limit'] for i in local_stats[component]]
-                        if l:
-                            allocation += sum(l) / len(l)
-                        else:
-                            print('empty local stats')
-                            do_tower = False
-                    stats['_tower']['allocation'] = allocation
-                    print('fetch all stats done')
+                # if stats:
+                #     do_tower = True
+                #     print('fetch all stats')
+                #     for node_socket in node_sockets.values():
+                #         node_socket.write(json.dumps({
+                #             'method': 'stats',
+                #         }) + '\n')
+                #         node_socket.flush()
+                #     local_stats = {}
+                #     for node_socket in node_sockets.values():
+                #         line = node_socket.readline()
+                #         data = json.loads(line)
+                #         assert data['ok']
+                #         local_stats.update(data['stats'])
+                #     allocation = 0
+                #     for component in scalers:
+                #         l = [i[1]['scaler.limit'] for i in local_stats[component]]
+                #         if l:
+                #             allocation += sum(l) / len(l)
+                #         else:
+                #             print('empty local stats')
+                #             do_tower = False
+                #     stats['_tower']['allocation'] = allocation
+                #     print('fetch all stats done')
 
-                if do_tower:
-                    tower_updates = tower(t, stats, scalers)
-                    if tower_updates:
-                        print('tower update')
-                        for node_socket in node_sockets.values():
-                            node_socket.write(json.dumps({
-                                'method': 'update',
-                                'update': tower_updates,
-                            }) + '\n')
-                            node_socket.flush()
-                        for node_socket in node_sockets.values():
-                            line = node_socket.readline()
-                            data = json.loads(line)
-                            assert data['ok']
-                        print('tower update done')
+                # if do_tower:
+                #     tower_updates = tower(t, stats, scalers)
+                #     if tower_updates:
+                #         print('tower update')
+                #         for node_socket in node_sockets.values():
+                #             node_socket.write(json.dumps({
+                #                 'method': 'update',
+                #                 'update': tower_updates,
+                #             }) + '\n')
+                #             node_socket.flush()
+                #         for node_socket in node_sockets.values():
+                #             line = node_socket.readline()
+                #             data = json.loads(line)
+                #             assert data['ok']
+                #         print('tower update done')
 
-                if '_tower' in stats:
-                    print(stats['_tower'])
-                for name in stats:
-                    stats_history[name].append((t + monotonic_base, stats[name]))
+                # if '_tower' in stats:
+                #     print(stats['_tower'])
+                # for name in stats:
+                #     stats_history[name].append((t + monotonic_base, stats[name]))
 
         except Exception:
             traceback.print_exc()
             teardown()
             raise
 
-    for node_socket in node_sockets.values():
-        node_socket.write(json.dumps({
-            'method': 'stop',
-        }) + '\n')
-        node_socket.flush()
-    for node_socket in node_sockets.values():
-        line = node_socket.readline()
-        data = json.loads(line)
-        assert data['ok']
-        for k, v in data['stats'].items():
-            assert k not in stats_history
-            stats_history[k] = v
+    # for node_socket in node_sockets.values():
+    #     node_socket.write(json.dumps({
+    #         'method': 'stop',
+    #     }) + '\n')
+    #     node_socket.flush()
+    # for node_socket in node_sockets.values():
+    #     line = node_socket.readline()
+    #     data = json.loads(line)
+    #     assert data['ok']
+    #     for k, v in data['stats'].items():
+    #         assert k not in stats_history
+    #         stats_history[k] = v
 
     for p in worker_ps:
         p.wait()

@@ -3,10 +3,10 @@
 
 const fs = require('fs');
 
-const worker1 = 'autothrottle-2';
-const worker2 = 'autothrottle-3';
-const worker3 = 'autothrottle-4';
-const worker4 = 'autothrottle-5';
+const worker1 = 'ec-oldstack2';
+const worker2 = 'ec-oldstack3';
+const worker3 = 'ec-oldstack4';
+const worker4 = 'ec-oldstack5';
 const namespace = 'train-ticket';
 
 function labels(name) {
@@ -182,24 +182,24 @@ const doc = {
         name: namespace,
       },
     },
-    mongodb(worker2, 'ts-user-mongo'),
-    mongodb(worker2, 'ts-auth-mongo'),
-    mongodb(worker4, 'ts-route-mongo'),
-    mongodb(worker3, 'ts-contacts-mongo'),
+    mongodb(worker1, 'ts-user-mongo'),
+    mongodb(worker1, 'ts-auth-mongo'),
+    mongodb(worker1, 'ts-route-mongo'),
+    mongodb(worker1, 'ts-contacts-mongo'),
     mongodb(worker1, 'ts-order-mongo'),
-    mongodb(worker3, 'ts-order-other-mongo'),
-    mongodb(worker2, 'ts-config-mongo'),
-    mongodb(worker3, 'ts-station-mongo'),
-    mongodb(worker4, 'ts-train-mongo'),
+    mongodb(worker1, 'ts-order-other-mongo'),
+    mongodb(worker1, 'ts-config-mongo'),
+    mongodb(worker1, 'ts-station-mongo'),
+    mongodb(worker1, 'ts-train-mongo'),
     mongodb(worker1, 'ts-travel-mongo'),
     mongodb(worker1, 'ts-travel2-mongo'),
-    mongodb(worker4, 'ts-price-mongo'),
-    mongodb(worker3, 'ts-security-mongo'),
-    mongodb(worker2, 'ts-inside-payment-mongo'),
-    mongodb(worker2, 'ts-payment-mongo'),
-    mongodb(worker3, 'ts-assurance-mongo'),
-    mongodb(worker3, 'ts-ticket-office-mongo'),
-    deployment(worker3, 'ts-voucher-mysql', {
+    mongodb(worker1, 'ts-price-mongo'),
+    mongodb(worker1, 'ts-security-mongo'),
+    mongodb(worker1, 'ts-inside-payment-mongo'),
+    mongodb(worker1, 'ts-payment-mongo'),
+    mongodb(worker1, 'ts-assurance-mongo'),
+    mongodb(worker1, 'ts-ticket-office-mongo'),
+    deployment(worker1, 'ts-voucher-mysql', {
       containers: [
         {
           name: 'ts-voucher-mysql',
@@ -219,15 +219,15 @@ const doc = {
         }
       ],
     }),
-    mongodb(worker3, 'ts-food-map-mongo'),
-    mongodb(worker3, 'ts-consign-mongo'),
-    mongodb(worker3, 'ts-consign-price-mongo'),
-    mongodb(worker3, 'ts-food-mongo'),
-    mongodb(worker3, 'ts-notification-mongo'),
+    mongodb(worker1, 'ts-food-map-mongo'),
+    mongodb(worker1, 'ts-consign-mongo'),
+    mongodb(worker1, 'ts-consign-price-mongo'),
+    mongodb(worker1, 'ts-food-mongo'),
+    mongodb(worker1, 'ts-notification-mongo'),
     service('ts-notification-mongo', [{ port: 27017 }]),
-    mongodb(worker3, 'ts-delivery-mongo'),
+    mongodb(worker1, 'ts-delivery-mongo'),
     service('ts-delivery-mongo', [{ port: 27017 }]),
-    deployment(worker3, 'rabbitmq', {
+    deployment(worker1, 'rabbitmq', {
       containers: [
         {
           "name": "rabbitmq",
@@ -264,47 +264,47 @@ const doc = {
     service('ts-consign-mongo', [{ port: 27017 }]),
     service('ts-consign-price-mongo', [{ port: 27017 }]),
     service('ts-food-mongo', [{ port: 27017 }]),
-    java(worker4, 'ts-admin-basic-info-service', 18767),
-    java(worker3, 'ts-admin-order-service', 16112),
-    java(worker4, 'ts-admin-route-service', 16113),
+    java(worker1, 'ts-admin-basic-info-service', 18767),
+    java(worker1, 'ts-admin-order-service', 16112),
+    java(worker1, 'ts-admin-route-service', 16113),
     java(worker1, 'ts-admin-travel-service', 16114),
-    java(worker2, 'ts-admin-user-service', 16115),
-    java(worker3, 'ts-assurance-service', 18888),
-    java(worker4, 'ts-basic-service', 15680),
-    java(worker3, 'ts-cancel-service', 18885),
-    java(worker2, 'ts-config-service', 15679), //XXX
-    java(worker3, 'ts-consign-price-service', 16110),
-    java(worker3, 'ts-consign-service', 16111),
-    java(worker3, 'ts-contacts-service', 12347),
-    java(worker3, 'ts-execute-service', 12386),
-    java(worker3, 'ts-food-map-service', 18855),
-    java(worker3, 'ts-food-service', 18856, { extraEnv: rabbitmqEnv }),
-    java(worker2, 'ts-inside-payment-service', 18673), //XXX
-    java(worker2, 'ts-auth-service', 12340), //XXX
+    java(worker1, 'ts-admin-user-service', 16115),
+    java(worker1, 'ts-assurance-service', 18888),
+    java(worker1, 'ts-basic-service', 15680),
+    java(worker1, 'ts-cancel-service', 18885),
+    java(worker1, 'ts-config-service', 15679), //XXX
+    java(worker1, 'ts-consign-price-service', 16110),
+    java(worker1, 'ts-consign-service', 16111),
+    java(worker1, 'ts-contacts-service', 12347),
+    java(worker1, 'ts-execute-service', 12386),
+    java(worker1, 'ts-food-map-service', 18855),
+    java(worker1, 'ts-food-service', 18856, { extraEnv: rabbitmqEnv }),
+    java(worker1, 'ts-inside-payment-service', 18673), //XXX
+    java(worker1, 'ts-auth-service', 12340), //XXX
     java(worker1, 'ts-news-service', 12862, { noCommand: true }),
-    java(worker3, 'ts-notification-service', 17853, { extraEnv: rabbitmqEnv }),
-    java(worker3, 'ts-order-other-service', 12032),
+    java(worker1, 'ts-notification-service', 17853, { extraEnv: rabbitmqEnv }),
+    java(worker1, 'ts-order-other-service', 12032),
     java(worker1, 'ts-order-service', 12031),
-    java(worker2, 'ts-payment-service', 19001), //XXX
-    java(worker3, 'ts-preserve-other-service', 14569, { extraEnv: rabbitmqEnv }),
-    java(worker3, 'ts-preserve-service', 14568, { extraEnv: rabbitmqEnv }),
-    java(worker4, 'ts-price-service', 16579),
-    java(worker2, 'ts-rebook-service', 18886),
-    java(worker3, 'ts-route-plan-service', 14578),
-    java(worker4, 'ts-route-service', 11178),
+    java(worker1, 'ts-payment-service', 19001), //XXX
+    java(worker1, 'ts-preserve-other-service', 14569, { extraEnv: rabbitmqEnv }),
+    java(worker1, 'ts-preserve-service', 14568, { extraEnv: rabbitmqEnv }),
+    java(worker1, 'ts-price-service', 16579),
+    java(worker1, 'ts-rebook-service', 18886),
+    java(worker1, 'ts-route-plan-service', 14578),
+    java(worker1, 'ts-route-service', 11178),
     java(worker1, 'ts-seat-service', 18898),
-    java(worker3, 'ts-security-service', 11188),
-    java(worker2, 'ts-user-service', 12342), //XXX
-    java(worker3, 'ts-station-service', 12345),
-    java(worker3, 'ts-ticket-office-service', 16108, { noCommand: true }),
-    java(worker2, 'ts-ticketinfo-service', 15681),
-    java(worker4, 'ts-train-service', 14567),
+    java(worker1, 'ts-security-service', 11188),
+    java(worker1, 'ts-user-service', 12342), //XXX
+    java(worker1, 'ts-station-service', 12345),
+    java(worker1, 'ts-ticket-office-service', 16108, { noCommand: true }),
+    java(worker1, 'ts-ticketinfo-service', 15681),
+    java(worker1, 'ts-train-service', 14567),
     java(worker1, 'ts-travel2-service', 16346),
-    java(worker3, 'ts-travel-plan-service', 14322),
+    java(worker1, 'ts-travel-plan-service', 14322),
     java(worker1, 'ts-travel-service', 12346),
-    java(worker3, 'ts-delivery-service', 18808, { extraEnv: rabbitmqEnv }),
-    java(worker2, 'ts-verification-code-service', 15678),
-    java(worker3, 'ts-voucher-service', 16101, { noCommand: true }),
+    java(worker1, 'ts-delivery-service', 18808, { extraEnv: rabbitmqEnv }),
+    java(worker1, 'ts-verification-code-service', 15678),
+    java(worker1, 'ts-voucher-service', 16101, { noCommand: true }),
     service('ts-admin-basic-info-service', [{ name: 'http', port: 18767 }]),
     service('ts-delivery-service', [{ name: 'http', port: 18808 }]),
     service('ts-admin-order-service', [{ name: 'http', port: 16112 }]),
@@ -346,7 +346,7 @@ const doc = {
     service('ts-travel-service', [{ name: 'http', port: 12346 }]),
     service('ts-verification-code-service', [{ name: 'http', port: 15678 }]),
     service('ts-voucher-service', [{ name: 'http', port: 16101 }]),
-    deployment(worker2, 'ts-avatar-service', {
+    deployment(worker1, 'ts-avatar-service', {
       containers: [
         {
           "name": "ts-avatar-service",
@@ -369,7 +369,7 @@ const doc = {
       ],
     }),
     service('ts-avatar-service', [{ name: 'http', port: 17001 }]),
-    deployment(worker3, 'ts-ui-dashboard', {
+    deployment(worker1, 'ts-ui-dashboard', {
       containers: [
         {
           "name": "ts-ui-dashboard",
@@ -387,4 +387,4 @@ const doc = {
   ],
 };
 
-fs.writeFileSync('train-ticket/1.json', JSON.stringify(doc, null, 2) + '\n');
+fs.writeFileSync('./1.json', JSON.stringify(doc, null, 2) + '\n');

@@ -3,10 +3,10 @@
 
 const fs = require('fs');
 
-const worker1 = 'autothrottle-2';
-const worker2 = 'autothrottle-3';
-const worker3 = 'autothrottle-4';
-const worker4 = 'autothrottle-5';
+const worker1 = 'ec-oldstack2';
+const worker2 = 'ec-oldstack3';
+const worker3 = 'ec-oldstack4';
+const worker4 = 'ec-oldstack5';
 const image_cpp = 'hypercube/social-network-ml-microservices:latest@sha256:1b8d25acb3137df320b80d7f9ccd55eb3bc8a1141fc57d78d57a978ce3e0d605';
 const image_nginx = 'hypercube/social-network-ml-nginx:latest@sha256:6ac95749cb7aff055735ce490c7e702d1dabf8b6262c87d52d49b8ef4377833a';
 const image_media_filter = 'hypercube/social-network-ml-media-filter:latest@sha256:ece820ae1156eab2c6b41eae07ecac524960d47bcdd4e063e9d3520399dcac05';
@@ -221,43 +221,44 @@ const doc1 = {
       ],
     }),
 
-    ...cpp(worker3, 'compose-post-service', 'ComposePostService'),
-    ...redis(worker3, 'compose-post-redis'),
+    ...cpp(worker1, 'compose-post-service', 'ComposePostService'),
+    ...redis(worker1, 'compose-post-redis'),
 
     ...cpp(worker1, 'home-timeline-service', 'HomeTimelineService'),
-    ...redis(worker3, 'home-timeline-redis'),
+    ...redis(worker1, 'home-timeline-redis'),
 
-    ...cpp(worker3, 'media-service', 'MediaService'),
+    ...cpp(worker1, 'media-service', 'MediaService'),
 
-    ...cpp(worker2, 'post-storage-service', 'PostStorageService'),
-    ...memcached(worker3, 'post-storage-memcached'),
-    ...mongodb(worker3, 'post-storage-mongodb'),
+    ...cpp(worker1, 'post-storage-service', 'PostStorageService'),
+    ...memcached(worker1, 'post-storage-memcached'),
+    ...mongodb(worker1, 'post-storage-mongodb'),
 
-    ...cpp(worker3, 'social-graph-service', 'SocialGraphService'),
-    ...mongodb(worker3, 'social-graph-mongodb'),
-    ...redis(worker3, 'social-graph-redis'),
+    ...cpp(worker1, 'social-graph-service', 'SocialGraphService'),
+    ...mongodb(worker1, 'social-graph-mongodb'),
+    ...redis(worker1, 'social-graph-redis'),
 
-    ...cpp(worker3, 'text-service', 'TextService'),
+    ...cpp(worker1, 'text-service', 'TextService'),
 
-    ...cpp(worker3, 'unique-id-service', 'UniqueIdService'),
+    ...cpp(worker1, 'unique-id-service', 'UniqueIdService'),
 
-    ...cpp(worker3, 'url-shorten-service', 'UrlShortenService'),
+    ...cpp(worker1, 'url-shorten-service', 'UrlShortenService'),
 
-    ...cpp(worker3, 'user-mention-service', 'UserMentionService'),
+    ...cpp(worker1, 'user-mention-service', 'UserMentionService'),
 
-    ...cpp(worker3, 'user-service', 'UserService'),
-    ...memcached(worker3, 'user-memcached'),
-    ...mongodb(worker3, 'user-mongodb'),
+    ...cpp(worker1, 'user-service', 'UserService'),
+    ...memcached(worker1, 'user-memcached'),
+    ...mongodb(worker1, 'user-mongodb'),
 
-    ...cpp(worker3, 'user-timeline-service', 'UserTimelineService'),
-    ...mongodb(worker3, 'user-timeline-mongodb'),
-    ...redis(worker3, 'user-timeline-redis'),
+    ...cpp(worker1, 'user-timeline-service', 'UserTimelineService'),
+    ...mongodb(worker1, 'user-timeline-mongodb'),
+    ...redis(worker1, 'user-timeline-redis'),
 
-    ...rabbitmq(worker3, 'write-home-timeline-rabbitmq', 'WRITE-HOME-TIMELINE-RABBITMQ'),
+    ...rabbitmq(worker1, 'write-home-timeline-rabbitmq', 'WRITE-HOME-TIMELINE-RABBITMQ'),
 
-    ...rabbitmq(worker3, 'write-user-timeline-rabbitmq', 'WRITE-USER-TIMELINE-RABBITMQ'),
+    ...rabbitmq(worker1, 'write-user-timeline-rabbitmq', 'WRITE-USER-TIMELINE-RABBITMQ'),
 
-    ...multi_deployment_service('media-filter-service', [worker1, worker2, worker3], {
+    // ...multi_deployment_service('media-filter-service', [worker1, worker1, worker1], {
+    ...multi_deployment_service('media-filter-service', [worker1], {
       containers: [
         {
           name: 'media-filter-service',
@@ -270,7 +271,7 @@ const doc1 = {
     }),
 
     ...deployment_service('text-filter-service', {
-      nodeName: worker3,
+      nodeName: worker1,
       containers: [
         {
           name: 'text-filter-service',
@@ -289,10 +290,10 @@ const doc2 = {
   apiVersion: 'v1',
   kind: 'List',
   items: [
-    ...cpp(worker3, 'write-home-timeline-service', 'WriteHomeTimelineService'),
-    ...cpp(worker3, 'write-user-timeline-service', 'WriteUserTimelineService'),
+    ...cpp(worker1, 'write-home-timeline-service', 'WriteHomeTimelineService'),
+    ...cpp(worker1, 'write-user-timeline-service', 'WriteUserTimelineService'),
   ],
 };
 
-fs.writeFileSync('social-network/1.json', JSON.stringify(doc1, null, 2) + '\n');
-fs.writeFileSync('social-network/2.json', JSON.stringify(doc2, null, 2) + '\n');
+fs.writeFileSync('./1.json', JSON.stringify(doc1, null, 2) + '\n');
+fs.writeFileSync('./2.json', JSON.stringify(doc2, null, 2) + '\n');

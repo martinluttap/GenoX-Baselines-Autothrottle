@@ -3,7 +3,7 @@
 
 const fs = require('fs');
 
-const worker1 = 'autothrottle-2';
+const worker1 = 'ec-oldstack2';
 const worker2 = 'autothrottle-3';
 const worker3 = 'autothrottle-4';
 const worker4 = 'autothrottle-5';
@@ -306,30 +306,31 @@ const doc = {
       ],
     }),
 
-    ...go(worker3, 'geo', 'geo', 8083),
-    ...mongodb(worker3, 'mongodb-geo', 'geo'),
+    ...go(worker1, 'geo', 'geo', 8083),
+    ...mongodb(worker1, 'mongodb-geo', 'geo'),
 
-    ...go(worker4, 'profile', 'profile', 8081),
-    ...memcached(worker4, 'memcached-profile'),
-    ...mongodb(worker4, 'mongodb-profile', 'profile'),
+    ...go(worker1, 'profile', 'profile', 8081),
+    ...memcached(worker1, 'memcached-profile'),
+    ...mongodb(worker1, 'mongodb-profile', 'profile'),
 
-    ...go(worker4, 'rate', 'rate', 8084),
-    ...memcached(worker4, 'memcached-rate'),
-    ...mongodb(worker4, 'mongodb-rate', 'rate'),
+    ...go(worker1, 'rate', 'rate', 8084),
+    ...memcached(worker1, 'memcached-rate'),
+    ...mongodb(worker1, 'mongodb-rate', 'rate'),
 
-    ...go(worker2, 'recommendation', 'recommendation', 8085),
-    ...mongodb(worker2, 'mongodb-recommendation', 'recommendation'),
+    ...go(worker1, 'recommendation', 'recommendation', 8085),
+    ...mongodb(worker1, 'mongodb-recommendation', 'recommendation'),
 
-    ...go(worker2, 'reservation', 'reservation', 8087),
-    ...memcached(worker2, 'memcached-reserve'),
-    ...mongodb(worker2, 'mongodb-reservation', 'reservation'),
+    ...go(worker1, 'reservation', 'reservation', 8087),
+    ...memcached(worker1, 'memcached-reserve'),
+    ...mongodb(worker1, 'mongodb-reservation', 'reservation'),
 
-    ...go(worker3, 'search', 'search', 8082),
+    ...go(worker1, 'search', 'search', 8082),
 
-    ...go(worker3, 'user', 'user', 8086),
-    ...mongodb(worker3, 'mongodb-user', 'user'),
+    ...go(worker1, 'user', 'user', 8086),
+    ...mongodb(worker1, 'mongodb-user', 'user'),
 
   ],
 };
 
-fs.writeFileSync('hotel-reservation/1.json', JSON.stringify(doc, null, 2) + '\n');
+// fs.writeFileSync('hotel-reservation/1.json', JSON.stringify(doc, null, 2) + '\n');
+fs.writeFileSync('./1.json', JSON.stringify(doc, null, 2) + '\n');

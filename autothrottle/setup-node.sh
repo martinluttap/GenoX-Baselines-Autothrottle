@@ -63,18 +63,18 @@ install_k8s() {
 
 
 
-# systemctl stop firewalld.service
+systemctl stop firewalld.service
 
 
 # Why do we need to do this?? Taken from here:
 # https://github.com/kubernetes/kubeadm/issues/1062
-# echo "net.bridge.bridge-nf-call-iptables=1" | tee -a /etc/sysctl.conf
-# modprobe br_netfilter
-# echo '1' > /proc/sys/net/ipv4/ip_forward
+echo "net.bridge.bridge-nf-call-iptables=1" | tee -a /etc/sysctl.conf
+modprobe br_netfilter
+echo '1' > /proc/sys/net/ipv4/ip_forward
 
 
-# install_containerd
-# install_k8s
+install_containerd
+install_k8s
 
 
 if [ "$1" = master ]; then

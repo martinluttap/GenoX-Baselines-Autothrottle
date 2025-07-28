@@ -32,15 +32,17 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
     namespace = name
     components = sorted(sum(nodes.values(), []))
     locust_workers = 8
-    warmup_minutes = 3  # see section A.7 in the paper
+    warmup_minutes = 0  # see section A.7 in the paper
     warmup_seconds = warmup_minutes * 60
     initial_limit = 32
     tower_targets = [0.0, 0.02, 0.04, 0.06, 0.1, 0.15, 0.2, 0.25, 0.3]  # see section 4 in the paper
     samples = []
+    trace_minutes = 1
+    trace_seconds = trace_minutes * 60
 
     # all our locustfiles are designed to read each second's RPS from rps.txt
     trace = load_trace('traces/diurnal-2.txt')
-    trace = [round(i * trace_multiplier) for i in trace]
+    trace = [round(i * trace_multiplier) for i in trace][:trace_seconds]
     warmup = []
     for i in range(warmup_seconds):
         rps = round(trace[0] * 1.1 ** ((i - warmup_seconds) / 5))  # x1.1 every 5 seconds, see section A.7 in the paper
@@ -51,7 +53,7 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
     dump_trace(trace, 'rps.txt')
 
     # see section A.7 in the paper for the warmup process
-    for i in range(6):
+    for i in range(0):
         path = f'data/{name}/autothrottle-warmup/a{i + 1}'
         if benchmark(
             output_dir=path,
@@ -71,8 +73,8 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
             ),
             locust_workers=locust_workers,
         ):
-            allocation = TimeSeries.zip_with(lambda *args: sum(args), *[v for k, v in load_cpu_limit(path).items()]) \
-                .downsample_time_weighted_average(60).slice(warmup_seconds + 30, float('inf')).average()
+            # allocation = TimeSeries.zip_with(lambda *args: sum(args), *[v for k, v in load_cpu_limit(path).items()]) \
+                # .downsample_time_weighted_average(60).slice(warmup_seconds + 30, float('inf')).average()
             request_latency = load_request_latency(path).slice(warmup_seconds, float('inf'))
             p99_latency = request_latency.percentage(99)
             average_rps = len(request_latency) / 3600
@@ -83,64 +85,66 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
                 'trace': 'diurnal-2',
                 'scaler': 'autothrottle',
                 'warmup': f'a{i + 1}',
-                'allocation': allocation,
+                # 'allocation': allocation,
                 'p99_latency': p99_latency,
                 'average_rps': average_rps,
             }
             with open('log.json', 'a') as f:
                 f.write(json.dumps(log) + '\n')
             send_notification(f'{name} warmup {i + 1} / 12 finished')
-        samples += load_samples(path)
-    for i in range(6):
-        path = f'data/{name}/autothrottle-warmup/b{i + 1}'
-        if benchmark(
-            output_dir=path,
-            namespace=namespace,
-            locustfile=locustfile,
-            url=url,
-            nodes=nodes,
-            deploy=deploy,
-            teardown=teardown,
-            scalers={i: {'type': 'captain', 'params': (0.0, initial_limit)} for i in components},
-            tower=VwTower(
-                scaler='captain',
-                targets=tower_targets,
-                target1components=target1components,
-                slo=slo,
-                samples=samples,
-                explore=0.5,
-                drop_samples=warmup_minutes,
-                aggregate_samples=aggregate_samples,
-            ),
-            locust_workers=locust_workers,
-        ):
-            allocation = TimeSeries.zip_with(lambda *args: sum(args), *[v for k, v in load_cpu_limit(path).items()]) \
-                .downsample_time_weighted_average(60).slice(warmup_seconds + 30, float('inf')).average()
-            request_latency = load_request_latency(path).slice(warmup_seconds, float('inf'))
-            p99_latency = request_latency.percentage(99)
-            average_rps = len(request_latency) / 3600
-            log = {
-                'time': datetime.datetime.utcnow().isoformat() + 'Z',
-                'path': path,
-                'application': name,
-                'trace': 'diurnal-2',
-                'scaler': 'autothrottle',
-                'warmup': f'b{i + 1}',
-                'allocation': allocation,
-                'p99_latency': p99_latency,
-                'average_rps': average_rps,
-            }
-            with open('log.json', 'a') as f:
-                f.write(json.dumps(log) + '\n')
-            send_notification(f'{name} warmup {i + 7} / 12 finished')
-        samples += load_samples(path)[warmup_minutes:]
+        # samples += load_samples(path)
+    # for i in range(1):
+    #     path = f'data/{name}/autothrottle-warmup/b{i + 1}'
+    #     if benchmark(
+    #         output_dir=path,
+    #         namespace=namespace,
+    #         locustfile=locustfile,
+    #         url=url,
+    #         nodes=nodes,
+    #         deploy=deploy,
+    #         teardown=teardown,
+    #         scalers={i: {'type': 'captain', 'params': (0.0, initial_limit)} for i in components},
+    #         tower=VwTower(
+    #             scaler='captain',
+    #             targets=tower_targets,
+    #             target1components=target1components,
+    #             slo=slo,
+    #             # samples=samples,
+    #             explore=0.5,
+    #             drop_samples=warmup_minutes,
+    #             aggregate_samples=aggregate_samples,
+    #         ),
+    #         locust_workers=locust_workers,
+    #     ):
+    #         # allocation = TimeSeries.zip_with(lambda *args: sum(args), *[v for k, v in load_cpu_limit(path).items()]) \
+    #             # .downsample_time_weighted_average(60).slice(warmup_seconds + 30, float('inf')).average()
+    #         request_latency = load_request_latency(path).slice(warmup_seconds, float('inf'))
+    #         p99_latency = request_latency.percentage(99)
+    #         average_rps = len(request_latency) / 3600
+    #         log = {
+    #             'time': datetime.datetime.utcnow().isoformat() + 'Z',
+    #             'path': path,
+    #             'application': name,
+    #             'trace': 'diurnal-2',
+    #             'scaler': 'autothrottle',
+    #             'warmup': f'b{i + 1}',
+    #             # 'allocation': allocation,
+    #             'p99_latency': p99_latency,
+    #             'average_rps': average_rps,
+    #         }
+    #         with open('log.json', 'a') as f:
+    #             f.write(json.dumps(log) + '\n')
+    #         send_notification(f'{name} warmup {i + 7} / 12 finished')
+        # samples += load_samples(path)[warmup_minutes:]
 
+    print("DONE WARM UP")
     for trace_name, scaler_targets in traces_and_targets.items():
         # all our locustfiles are designed to read each second's RPS from rps.txt
         if isinstance(trace_name, str):
             workload_name = trace_name
             trace = load_trace(f'traces/{trace_name}.txt')
             trace = [round(i * trace_multiplier) for i in trace]
+            print(f"Len trace: {len(trace)}")
         elif isinstance(trace_name, int):
             workload_name = 'constant'
             trace = [trace_name] * 3600
@@ -153,6 +157,9 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
                 rps = 1
             warmup.append(rps)
         trace = warmup + trace
+    
+        trace_len_seconds = 900
+        trace = trace[:trace_len_seconds]
         dump_trace(trace, 'rps.txt')
 
         path = f'data/{name}/{trace_name}/autothrottle'
@@ -170,7 +177,7 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
                 targets=tower_targets,
                 target1components=target1components,
                 slo=slo,
-                samples=samples,
+                # samples=samples,
                 # this is only for evaluation, see section A.7 in the paper
                 # normally, 0.1 is a good value and no warmup process is needed
                 explore=0.0,
@@ -179,8 +186,8 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
             ),
             locust_workers=locust_workers,
         ):
-            allocation = TimeSeries.zip_with(lambda *args: sum(args), *[v for k, v in load_cpu_limit(path).items()]) \
-                .downsample_time_weighted_average(60).slice(warmup_seconds + 30, float('inf')).average()
+            # allocation = TimeSeries.zip_with(lambda *args: sum(args), *[v for k, v in load_cpu_limit(path).items()]) \
+                # .downsample_time_weighted_average(60).slice(warmup_seconds + 30, float('inf')).average()
             request_latency = load_request_latency(path).slice(warmup_seconds, float('inf'))
             p99_latency = request_latency.percentage(99)
             average_rps = len(request_latency) / 3600
@@ -190,10 +197,11 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
                 'application': name,
                 'trace': trace_name,
                 'scaler': 'autothrottle',
-                'allocation': allocation,
+                # 'allocation': allocation,
                 'p99_latency': p99_latency,
                 'average_rps': average_rps,
             }
+            allocation = 0
             with open('log.json', 'a') as f:
                 f.write(json.dumps(log) + '\n')
             if p99_latency <= slo:
@@ -207,49 +215,49 @@ def application(name, slo, nodes, target1components, deploy, teardown, traces_an
                     f.write(f'# ^ {detail}\n')
                 send_notification(f'{name} {workload_name} autothrottle result: N/A. {detail}')
 
-        for scaler, targets in scaler_targets.items():
-            for target in targets:
-                path = f'data/{name}/{trace_name}/{scaler}/{target}'
-                if benchmark(
-                    output_dir=path,
-                    namespace=namespace,
-                    locustfile=locustfile,
-                    url=url,
-                    nodes=nodes,
-                    deploy=deploy,
-                    teardown=teardown,
-                    scalers={i: {'type': scaler, 'params': (target, initial_limit)} for i in components},
-                    tower=DummyTower(),
-                    locust_workers=locust_workers,
-                ):
-                    allocation = TimeSeries.zip_with(lambda *args: sum(args), *[v for k, v in load_cpu_limit(path).items()]) \
-                        .downsample_time_weighted_average(60).slice(warmup_seconds + 30, float('inf')).average()
-                    request_latency = load_request_latency(path).slice(warmup_seconds, float('inf'))
-                    p99_latency = request_latency.percentage(99)
-                    average_rps = len(request_latency) / 3600
-                    log = {
-                        'time': datetime.datetime.utcnow().isoformat() + 'Z',
-                        'path': path,
-                        'application': name,
-                        'trace': trace_name,
-                        'scaler': scaler,
-                        'target': target,
-                        'allocation': allocation,
-                        'p99_latency': p99_latency,
-                        'average_rps': average_rps,
-                    }
-                    with open('log.json', 'a') as f:
-                        f.write(json.dumps(log) + '\n')
-                    if p99_latency <= slo:
-                        with open('result.csv', 'a') as f:
-                            f.write(f'{name},{workload_name},{scaler},{allocation:.2f}\n')
-                        send_notification(f'{name} {workload_name} {scaler} result: {allocation:.2f}')
-                    else:
-                        detail = f'SLO not met. P99 latency = {p99_latency*1e3:.0f} ms. SLO = {slo*1e3:.0f} ms. Delete this path to run again: {path}'
-                        with open('result.csv', 'a') as f:
-                            f.write(f'{name},{workload_name},{scaler},N/A\n')
-                            f.write(f'# ^ {detail}\n')
-                        send_notification(f'{name} {workload_name} {scaler} result: N/A. {detail}')
+        # for scaler, targets in scaler_targets.items():
+        #     for target in targets:
+        #         path = f'data/{name}/{trace_name}/{scaler}/{target}'
+        #         if benchmark(
+        #             output_dir=path,
+        #             namespace=namespace,
+        #             locustfile=locustfile,
+        #             url=url,
+        #             nodes=nodes,
+        #             deploy=deploy,
+        #             teardown=teardown,
+        #             scalers={i: {'type': scaler, 'params': (target, initial_limit)} for i in components},
+        #             tower=DummyTower(),
+        #             locust_workers=locust_workers,
+        #         ):
+        #             allocation = TimeSeries.zip_with(lambda *args: sum(args), *[v for k, v in load_cpu_limit(path).items()]) \
+        #                 .downsample_time_weighted_average(60).slice(warmup_seconds + 30, float('inf')).average()
+        #             request_latency = load_request_latency(path).slice(warmup_seconds, float('inf'))
+        #             p99_latency = request_latency.percentage(99)
+        #             average_rps = len(request_latency) / 3600
+        #             log = {
+        #                 'time': datetime.datetime.utcnow().isoformat() + 'Z',
+        #                 'path': path,
+        #                 'application': name,
+        #                 'trace': trace_name,
+        #                 'scaler': scaler,
+        #                 'target': target,
+        #                 'allocation': allocation,
+        #                 'p99_latency': p99_latency,
+        #                 'average_rps': average_rps,
+        #             }
+        #             with open('log.json', 'a') as f:
+        #                 f.write(json.dumps(log) + '\n')
+        #             if p99_latency <= slo:
+        #                 with open('result.csv', 'a') as f:
+        #                     f.write(f'{name},{workload_name},{scaler},{allocation:.2f}\n')
+        #                 send_notification(f'{name} {workload_name} {scaler} result: {allocation:.2f}')
+        #             else:
+        #                 detail = f'SLO not met. P99 latency = {p99_latency*1e3:.0f} ms. SLO = {slo*1e3:.0f} ms. Delete this path to run again: {path}'
+        #                 with open('result.csv', 'a') as f:
+        #                     f.write(f'{name},{workload_name},{scaler},N/A\n')
+        #                     f.write(f'# ^ {detail}\n')
+        #                 send_notification(f'{name} {workload_name} {scaler} result: N/A. {detail}')
 
 
 def train_ticket():
@@ -274,8 +282,6 @@ def train_ticket():
                 'ts-travel2-service',
                 'ts-travel-mongo',
                 'ts-travel-service',
-            ],
-            'autothrottle-3': [
                 'ts-admin-user-service',
                 'ts-auth-mongo',
                 'ts-auth-service',
@@ -291,8 +297,6 @@ def train_ticket():
                 'ts-user-mongo',
                 'ts-user-service',
                 'ts-verification-code-service',
-            ],
-            'autothrottle-4': [
                 'rabbitmq',
                 'ts-admin-order-service',
                 'ts-assurance-mongo',
@@ -328,8 +332,6 @@ def train_ticket():
                 'ts-ui-dashboard',
                 'ts-voucher-mysql',
                 'ts-voucher-service',
-            ],
-            'autothrottle-5': [
                 'ts-admin-basic-info-service',
                 'ts-admin-route-service',
                 'ts-basic-service',
@@ -339,6 +341,12 @@ def train_ticket():
                 'ts-route-service',
                 'ts-train-mongo',
                 'ts-train-service',
+            ],
+            'autothrottle-3': [
+            ],
+            'autothrottle-4': [
+            ],
+            'autothrottle-5': [
             ],
         },
         target1components={  # see section A.3 in the paper
@@ -354,21 +362,21 @@ def train_ticket():
         deploy=deploy,
         teardown=teardown,
         traces_and_targets={  # see section A.6 in the paper
-            'diurnal': {
-                'k8s-cpu': [0.4],
-                'k8s-cpu-fast': [0.6],
-            },
-            200: {
-                'k8s-cpu': [0.6],
-                'k8s-cpu-fast': [0.6],
-            },
-            'noisy': {
-                'k8s-cpu': [0.5],
-                'k8s-cpu-fast': [0.7],
-            },
+            # 'diurnal': {
+            #     'k8s-cpu': [0.4],
+            #     'k8s-cpu-fast': [0.6],
+            # },
+            # 200: {
+            #     'k8s-cpu': [0.6],
+            #     'k8s-cpu-fast': [0.6],
+            # },
+            # 'noisy': {
+            #     'k8s-cpu': [0.5],
+            #     'k8s-cpu-fast': [0.7],
+            # },
             'bursty': {
                 'k8s-cpu': [0.5],
-                'k8s-cpu-fast': [0.6],
+                # 'k8s-cpu-fast': [0.6],
             },
         },
         trace_multiplier=1,
@@ -393,12 +401,8 @@ def social_network():
             'autothrottle-2': [
                 'home-timeline-service',
                 'media-filter-service-1',
-            ],
-            'autothrottle-3': [
                 'media-filter-service-2',
                 'post-storage-service',
-            ],
-            'autothrottle-4': [
                 'compose-post-redis',
                 'compose-post-service',
                 'home-timeline-redis',
@@ -424,9 +428,13 @@ def social_network():
                 'write-home-timeline-service',
                 'write-user-timeline-rabbitmq',
                 'write-user-timeline-service',
+                'nginx-thrift',
+            ],
+            'autothrottle-3': [
+            ],
+            'autothrottle-4': [
             ],
             'autothrottle-5': [  # see section A.3 in the paper
-                'nginx-thrift',
             ],
         },
         target1components={
@@ -437,21 +445,21 @@ def social_network():
         deploy=deploy,
         teardown=teardown,
         traces_and_targets={  # see section A.6 in the paper
-            'diurnal': {
-                'k8s-cpu': [0.5],
-                'k8s-cpu-fast': [0.5],
-            },
-            500: {
-                'k8s-cpu': [0.5],
-                'k8s-cpu-fast': [0.6],
-            },
-            'noisy': {
-                'k8s-cpu': [0.5],
-                'k8s-cpu-fast': [0.4],
-            },
+            # 'diurnal': {
+            #     'k8s-cpu': [0.5],
+            #     'k8s-cpu-fast': [0.5],
+            # },
+            # 500: {
+            #     'k8s-cpu': [0.5],
+            #     'k8s-cpu-fast': [0.6],
+            # },
+            # 'noisy': {
+            #     'k8s-cpu': [0.5],
+            #     'k8s-cpu-fast': [0.4],
+            # },
             'bursty': {
                 'k8s-cpu': [0.5],
-                'k8s-cpu-fast': [0.4],
+                # 'k8s-cpu-fast': [0.4],
             },
         },
         trace_multiplier=1.5,
@@ -462,8 +470,8 @@ def social_network():
 def hotel_reservation():
     def deploy():
         kubectl_apply('hotel-reservation/1.json', 'hotel-reservation', 19)
-        time.sleep(180)
-        # warm up by sending 200 requests per second for 15 seconds and then wait for 60 seconds
+        time.sleep(10)
+        # warm up by sending 200 requests per second for 15 seconds and then wait for 20 seconds
         # see section A.7 in the paper
         time_ = datetime.datetime.utcnow().isoformat() + 'Z'
         temp_dir = pathlib.Path('tmp')/time_
@@ -475,7 +483,7 @@ def hotel_reservation():
         for p in worker_ps:
             p.wait()
         dump_trace(trace_backup, 'rps.txt')
-        time.sleep(60)
+        time.sleep(20)
 
     def teardown():
         kubectl_delete('hotel-reservation/1.json', 'hotel-reservation')
@@ -484,30 +492,30 @@ def hotel_reservation():
         name='hotel-reservation',
         slo=0.1,  # see section 5.1 in the paper
         nodes={
-            'autothrottle-2': [
+            'ec-oldstack2': [
                 'frontend',
-            ],
-            'autothrottle-3': [
                 'memcached-reserve',
                 'mongodb-recommendation',
                 'mongodb-reservation',
                 'recommendation',
                 'reservation',
-            ],
-            'autothrottle-4': [
                 'geo',
                 'mongodb-geo',
                 'mongodb-user',
                 'search',
                 'user',
-            ],
-            'autothrottle-5': [
                 'memcached-profile',
                 'memcached-rate',
                 'mongodb-profile',
                 'mongodb-rate',
                 'profile',
                 'rate',
+            ],
+            'autothrottle-3': [
+            ],
+            'autothrottle-4': [
+            ],
+            'autothrottle-5': [
             ],
         },
         target1components={  # see section A.3 in the paper
@@ -521,28 +529,28 @@ def hotel_reservation():
         deploy=deploy,
         teardown=teardown,
         traces_and_targets={  # see section A.6 in the paper
-            'diurnal': {
-                'k8s-cpu': [0.7],
-                'k8s-cpu-fast': [0.7],
-            },
+            # 'diurnal': {
+            #     'k8s-cpu': [0.7],
+            #     'k8s-cpu-fast': [0.7],
+            # },
             2000: {
                 'k8s-cpu': [0.7],
-                'k8s-cpu-fast': [0.8],
+                # 'k8s-cpu-fast': [0.8],
             },
-            'noisy': {
-                'k8s-cpu': [0.6],
-                'k8s-cpu-fast': [0.7],
-            },
-            'bursty': {
-                'k8s-cpu': [0.5],
-                'k8s-cpu-fast': [0.7],
-            },
+            # 'noisy': {
+            #     'k8s-cpu': [0.6],
+            #     'k8s-cpu-fast': [0.7],
+            # },
+            # 'bursty': {
+                # 'k8s-cpu': [0.5],
+                # 'k8s-cpu-fast': [0.7],
+            # },
         },
         trace_multiplier=10,
         aggregate_samples=200,
     )
 
 
-social_network()
+# social_network()
 hotel_reservation()
-train_ticket()
+# train_ticket()
