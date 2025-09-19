@@ -35,16 +35,48 @@ def get_pod_map(namespace, components):
     #         uid = i.name[len(p):-len(s)].replace('_', '-')
     #         uid_to_qos[uid] = qos
 
+    import pathlib
+    import subprocess
+    import json
+    cgroupv2_base = pathlib.Path('/sys/fs/cgroup')
+    # Get pod/container info from k8s
+    p = subprocess.run([
+        'kubectl', 'get', 'pods', f'-n={namespace}', '-o', 'json'
+    ], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True, check=True)
+    pod_data = json.loads(p.stdout)
+    name_to_container_ids = {}
+    for item in pod_data['items']:
+        name_orig = item['metadata']['name']
+        name = name_orig.rsplit('-', 2)[0]
+        if name in components:
+            container_ids = []
+            statuses = item.get('status', {}).get('containerStatuses', [])
+            for status in statuses:
+                cid = status.get('containerID', '')
+                if cid.startswith('docker://'):
+                    cid = cid.replace('docker://', '')
+                if cid:
+                    container_ids.append(cid)
+            name_to_container_ids[name] = container_ids
+    # Find docker-*.scope files
+    docker_scopes = list(cgroupv2_base.glob('**/docker-*.scope'))
     pod_map = {}
-    # for name in components:
-    #     uid = name_to_uid[name]
-    #     try:
-    #         qos = uid_to_qos[uid]
-    #     except KeyError:
-    #         pass
-    #     else:
     for name in components:
-        pod_map[name] = f'{name}'
+        cids = name_to_container_ids.get(name, [])
+        found = False
+        for scope in docker_scopes:
+            fname = scope.name
+            parts = fname.split('-')
+            if len(parts) < 2:
+                continue
+            container_id = parts[1].replace('.scope', '')
+            for cid in cids:
+                if container_id == cid or container_id == cid[:12]:
+                    pod_map[name] = scope
+                    found = True
+                    break
+            if found:
+                break
     return pod_map
 
 
@@ -53,24 +85,27 @@ def stat_path(pod_map, name, stat):
     # family, _, name = stat.partition('.')
     # slices = f'kubepods.slice/kubepods-{qos}.slice/kubepods-{qos}-pod{uid.replace("-", "_")}.slice'
     # return pathlib.Path(f'/sys/fs/cgroup/{family}/{slices}/{family}.{name}')
+    # For cgroup v2, pod_map[name] is a Path to the .scope dir
     group = pod_map[name]
-    return pathlib.Path(f'/sys/fs/cgroup/cpu/{group}/{stat}')
+    return group / stat
 
 
 def set_cpu_limit(pod_map, name, limit, period=0.1):
     period_us = round(period * 1e6)
     assert 1000 <= period_us <= 1000000
+    cpu_max_path = stat_path(pod_map, name, 'cpu.max')
+    if not cpu_max_path.exists():
+        print(f'[WARNING] Cgroup file missing for {name}: {cpu_max_path}')
+        return
     if limit is None:
-        quota_us = -1
+        # Remove limit: write "max <period_us>"
+        cpu_max_path.write_text(f"max {period_us}")
     else:
         quota_us = round(limit * period_us)
         assert quota_us >= 1000
-
-    stat_path(pod_map, name, 'cpu.cfs_period_us').write_text(str(period_us))
-    stat_path(pod_map, name, 'cpu.cfs_quota_us').write_text(str(quota_us))
-    print(f'{datetime.datetime.now()} Written period={period_us},quota={quota_us} to name={name},(qos,uid)={pod_map[name]}')
-
-    return 
+        cpu_max_path.write_text(f"{quota_us} {period_us}")
+    print(f'{datetime.datetime.now()} Written cpu.max={cpu_max_path.read_text().strip()} to name={name},cgroup={pod_map[name]}')
+    return
 
 class ConstScaler:
     def __init__(self, limit):

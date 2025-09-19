@@ -301,36 +301,29 @@ def nextflow():
         # kubectl_delete(['social-network/1.json', 'social-network/2.json'], 'social-network')
         print('On TEARDOWN')
 
-    def get_running_containers(root_dir: str):
-        # traverse root directory, and list directories as dirs and files as files
-        ctrs: List[str] = []
-        for root, dirs, files in os.walk(f"{root_dir}"):
-            path = root.split(os.sep)
-            print((len(path) - 1) * '---', os.path.basename(root))
-            for d in dirs:
-                if d.startswith('docker-') and d.endswith('.scope'):
-                    ctrs.append(d)
-
-        return ctrs
+    def find_container_cgroups():
+        """
+        Return a list of all docker-<containerid>.scope names running on the node (cri-docker, cgroup v2).
+        """
+        import pathlib
+        cgroupv2_base = pathlib.Path('/sys/fs/cgroup')
+        containers = []
+        for scope in cgroupv2_base.glob('**/docker-*.scope'):
+            containers.append(scope.name)
+        return containers
 
     running_ctrs: List[str] = []
     while len(running_ctrs) == 0:
-        running_ctrs = get_running_containers(f'/sys/fs/cgroup/system.slice')
+        running_ctrs = find_container_cgroups()
         print(f'Waiting for containers to start ...')
         time.sleep(1)
     application(
         name='nextflow',
         nodes={
             'localhost': running_ctrs
-            # 'autothrottle-4': [
-            # ],
-            # 'autothrottle-5': [  # see section A.3 in the paper
-            # ],
         },
         target1components={
             running_ctrs[0],
-            # 'media-filter-service-2',
-            # 'media-filter-service-3',
         },
         deploy=deploy,
         teardown=teardown,
