@@ -1,3 +1,10 @@
+import logging
+logging.basicConfig(
+    filename='agent-cgv2.log',
+    filemode='a',
+    format='%(asctime)s %(levelname)s %(message)s',
+    level=logging.INFO
+)
 #!/usr/bin/env python3
 import collections
 import datetime
@@ -78,8 +85,6 @@ def get_pod_map(namespace, components):
             if found:
                 break
     return pod_map
-
-
 def stat_path(pod_map, name, stat):
     # qos, uid = pod_map[name]
     # family, _, name = stat.partition('.')
@@ -95,7 +100,7 @@ def set_cpu_limit(pod_map, name, limit, period=0.1):
     assert 1000 <= period_us <= 1000000
     cpu_max_path = stat_path(pod_map, name, 'cpu.max')
     if not cpu_max_path.exists():
-        print(f'[WARNING] Cgroup file missing for {name}: {cpu_max_path}')
+        logging.warning(f'Cgroup file missing for {name}: {cpu_max_path}')
         return
     if limit is None:
         # Remove limit: write "max <period_us>"
@@ -104,7 +109,7 @@ def set_cpu_limit(pod_map, name, limit, period=0.1):
         quota_us = round(limit * period_us)
         assert quota_us >= 1000
         cpu_max_path.write_text(f"{quota_us} {period_us}")
-    print(f'{datetime.datetime.now()} Written cpu.max={cpu_max_path.read_text().strip()} to name={name},cgroup={pod_map[name]}')
+        logging.info(f'Written cpu.max={cpu_max_path.read_text().strip()} to name={name},cgroup={pod_map[name]}')
     return
 
 class ConstScaler:
@@ -177,7 +182,6 @@ class CaptainScaler:
         self.margin = 3
         self.scale_down_cd = 0
         self.last_scale_down = False
-
         self.last_t = None
         self.last_stats = None
         self.last_scale_t = None
@@ -201,94 +205,81 @@ class CaptainScaler:
         except Exception as e:
             return self.limit
 
-        self.rollback_mechanism()       
+        self.rollback_mechanism()
 
         if t < self.last_scale_t + self.period - 0.0001:
             return self.limit
 
-        self.scale_updown() 
+        self.scale_updown()
 
         self.throttled_history = [0 for _ in range(int(10 * self.period))]
         self.limit = max(0.01, self.limit)
         self.last_scale_t = t
         stats['captain.margin'] = self.margin
-
-
         return self.limit
-
     def update(self, target):
         self.target = target
 
     def rollback_mechanism(self):
-        print(f'IN ROLLBACK at {self.last_t}')
         throttled_rate = statistics.mean(self.throttled_history)
         if throttled_rate > 3 * self.target and self.last_scale_down:
-            print(f'PASS THRESHOLD. Rate: {throttled_rate}, target: {self.target}, threshold: {3 * self.target}')
             self.limit = 2 * self.last_limit - self.limit # 
             self.margin += (throttled_rate - self.target)
             self.throttled_history = [0 for _ in range(int(10 * self.period))]
             self.last_scale_down = False
-
     def scale_updown(self):
-        print(f'IN SCALE at {self.last_t}')
         self.last_limit = self.limit
         throttled_rate = statistics.mean(self.throttled_history)
         usage_max = max(self.usage_history)
         usage_std = statistics.stdev(self.usage_history)
-
         self.margin += (throttled_rate - self.target)
         self.margin = max(0, self.margin)
         self.last_scale_down = False
-        print(f'Throttled rate = {throttled_rate}, thres={3*self.target}')
         if throttled_rate > 3 * self.target:
             self.default_scaleup(throttled_rate)
-            # self.additive_scaleup(throttled_rate)
         else:
-            # Instantaneously scale down
-            # self.default_scaledown(usage_max, usage_std)
             self.additive_scaledown(usage_max, usage_std)
-        print(f'At t={self.last_t}, tr_rate={throttled_rate}, limit={self.limit}, last_usage={self.usage_history[-1]}, quotaus={self.last_stats["cpu_cfs_quota_us"]}')
 
     def default_scaleup(self, throttled_rate):
         # Multiplicative scale up 
-        print(f'Multiplicative scale up')
-        print(f'Prev limit: {self.limit}')
+        logging.info(f'Multiplicative scale up')
+        logging.info(f'Prev limit: {self.limit}')
         self.limit *= 1 + (throttled_rate - 3 * self.target)
-        print(f'New limit: {self.limit}')
+        logging.info(f'New limit: {self.limit}')
 
     def default_scaledown(self, usage_max, usage_std): 
-        print(f'Instant scale down')
+        logging.info(f'Instant scale down')
         usage_limit = usage_max + usage_std * self.margin
-        print(f'usage_max={usage_max}, usage_std={usage_std}, margin={self.margin}, usage_limit={usage_limit}, self.limit={self.limit}')
+        logging.info(f'usage_max={usage_max}, usage_std={usage_std}, margin={self.margin}, usage_limit={usage_limit}, self.limit={self.limit}')
         if usage_limit <= self.limit * 0.9 and self.scale_down_cd == 0:
-            print(f'Instance scale down -- usage limit less than threshold and cd==0')
-            print(f'Prev limit: {self.limit}')
+            logging.info(f'Instance scale down -- usage limit less than threshold and cd==0')
+            logging.info(f'Prev limit: {self.limit}')
             self.limit = max(self.limit * 0.5, usage_limit)
-            print(f'New limit: {self.limit}')
+            logging.info(f'New limit: {self.limit}')
             self.last_scale_down = True
 
     def additive_scaleup(self, throttled_rate):
         # Additive scale up 
-        print(f'Additive scale up')
-        print(f'Prev limit: {self.limit}')
+        logging.info(f'Additive scale up')
+        logging.info(f'Prev limit: {self.limit}')
         # self.limit *= 1 + (throttled_rate - 3 * self.target)
         self.limit += 1
-        print(f'New limit: {self.limit}')
+        logging.info(f'New limit: {self.limit}')
 
     def additive_scaledown(self, usage_max, usage_std):
-        print(f'Additive scale down')
+        logging.info(f'Additive scale down')
         usage_limit = usage_max + usage_std * self.margin
-        print(f'usage_max={usage_max}, usage_std={usage_std}, margin={self.margin}, usage_limit={usage_limit}, self.limit={self.limit}')
+        logging.info(f'usage_max={usage_max}, usage_std={usage_std}, margin={self.margin}, usage_limit={usage_limit}, self.limit={self.limit}')
         if usage_limit <= self.limit * 0.9 and self.scale_down_cd == 0:
-            print(f'Prev limit: {self.limit}')
+            logging.info(f'Prev limit: {self.limit}')
             # self.limit = max(self.limit * 0.5, usage_limit)
             self.limit -= 1
-            print(f'New limit: {self.limit}')
+            logging.info(f'New limit: {self.limit}')
             self.last_scale_down = True
 
 
 def init_scaler(data):
-    print(f'Init scaler with data={data}')
+    logging.info(f'Init scaler with data={data}')
     return {
         'const': ConstScaler,
         'k8s-cpu-fast': K8sCPUFastScaler,
@@ -305,13 +296,15 @@ def run(control, namespace, components, scalers):
         assert name in components
     for name in components:
         limits[name] = None
-        set_cpu_limit(pod_map, name, None)
 
     files = {}
     for name in components:
-        files[name, 'cpuacct.usage'] = stat_path(pod_map, name, 'cpuacct.usage').open()
-        files[name, 'cpu.stat'] = stat_path(pod_map, name, 'cpu.stat').open()
-        files[name, 'cpu.cfs_quota_us'] = stat_path(pod_map, name, 'cpu.cfs_quota_us').open()
+        try:
+            # For cgroup v2, use different stat files
+            files[name, 'cpu.stat'] = stat_path(pod_map, name, 'cpu.stat').open()
+            files[name, 'cpu.max'] = stat_path(pod_map, name, 'cpu.max').open()
+        except Exception as e:
+            logging.warning(f'Failed to open cgroup files for {name}: {e}')
 
     monotonic_base = time.time() - time.perf_counter()
 
@@ -333,16 +326,32 @@ def run(control, namespace, components, scalers):
         stats = collections.defaultdict(dict)
         for name in components:
             try:
-                files[name, 'cpuacct.usage'].seek(0)
-                stats[name]['cpu_usage'] = files[name, 'cpuacct.usage'].read()
-                files[name, 'cpu.stat'].seek(0)
-                for line in files[name, 'cpu.stat'].read().splitlines():
-                    k, v = line.split()
-                    stats[name][f'cpu_stat.{k}'] = v
-                files[name, 'cpu.cfs_quota_us'].seek(0)
-                stats[name]['cpu_cfs_quota_us'] = files[name, 'cpu.cfs_quota_us'].read()
+                # Read cgroup v2 stats
+                if (name, 'cpu.stat') in files:
+                    files[name, 'cpu.stat'].seek(0)
+                    cpu_stat_content = files[name, 'cpu.stat'].read()
+                    for line in cpu_stat_content.splitlines():
+                        if ' ' in line:
+                            k, v = line.split(' ', 1)
+                            stats[name][f'cpu_stat.{k}'] = v
+                    
+                    # Parse usage_usec from cpu.stat for cgroup v2
+                    if 'cpu_stat.usage_usec' in stats[name]:
+                        stats[name]['cpu_usage'] = int(stats[name]['cpu_stat.usage_usec']) / 1e6
+                    else:
+                        stats[name]['cpu_usage'] = 0
+                
+                if (name, 'cpu.max') in files:
+                    files[name, 'cpu.max'].seek(0)
+                    cpu_max_content = files[name, 'cpu.max'].read().strip()
+                    if cpu_max_content != 'max':
+                        parts = cpu_max_content.split()
+                        if len(parts) >= 2:
+                            stats[name]['cpu_max_quota'] = int(parts[0])
+                            stats[name]['cpu_max_period'] = int(parts[1])
+                        
             except Exception as e:
-                print(f'At t={t} {name} has exception {e}, skipping ...')
+                logging.warning(f'At t={t:.3f} {name} has exception {e}, skipping ...')
 
         end_time = time.perf_counter()
         end_limit = (t + (-t * 1000 % 100 / 1000))
@@ -351,24 +360,30 @@ def run(control, namespace, components, scalers):
 
         for name in components:
             try:
-                stats[name]['cpu_usage'] = int(stats[name]['cpu_usage']) / 1e9
-                stats[name]['cpu_stat.nr_periods'] = int(stats[name]['cpu_stat.nr_periods'])
-                stats[name]['cpu_stat.nr_throttled'] = int(stats[name]['cpu_stat.nr_throttled'])
-                stats[name]['cpu_stat.throttled_time'] = int(stats[name]['cpu_stat.throttled_time']) / 1e9
-                stats[name]['cpu_stat.throttled_time'] = int(stats[name]['cpu_stat.throttled_time']) / 1e9
-                stats[name]['cpu_cfs_quota_us'] = int(stats[name]['cpu_cfs_quota_us'])
+                # Convert cgroup v2 stats to appropriate types
+                if 'cpu_stat.nr_periods' in stats[name]:
+                    stats[name]['cpu_stat.nr_periods'] = int(stats[name]['cpu_stat.nr_periods'])
+                if 'cpu_stat.nr_throttled' in stats[name]:
+                    stats[name]['cpu_stat.nr_throttled'] = int(stats[name]['cpu_stat.nr_throttled'])
+                if 'cpu_stat.throttled_usec' in stats[name]:
+                    stats[name]['cpu_stat.throttled_time'] = int(stats[name]['cpu_stat.throttled_usec']) / 1e6
+                    
+                # Ensure cpu_usage is set
+                if 'cpu_usage' not in stats[name]:
+                    stats[name]['cpu_usage'] = 0
+                    
             except Exception as e:
-                print(f'At t={t} {name} error {e}')
+                logging.warning(f'At t={t:.3f} {name} conversion error {e}')
 
 
         if control['update']:
             for k, v in control['update'].items():
                 if k in scalers:
-                    print(f'At t={t}, scaler={k}, control.update={v}')
+                    logging.info(f'At t={t:.3f}, scaler={k}, control.update={v}')
                     scalers[k].update(*v)
             control['update'] = {}
         for name, scaler in scalers.items():
-            # print(f'At t={t}, calling scaler {scaler.__class__.__name__} for {name}, target={scaler.target} ...')
+            # logging.info(f'At t={t}, calling scaler {scaler.__class__.__name__} for {name}, target={scaler.target} ...')
             limit = scaler(t, stats[name])
             if limit is not None:
                 limit = max(0.01, limit)
@@ -384,8 +399,14 @@ def run(control, namespace, components, scalers):
             stats_history[name].append((t + monotonic_base, stats[name]))
             stats_current[name].append((t + monotonic_base, stats[name]))
 
-    for f in files.values():
-        f.close()
+    logging.info('run thread stopped')
+    
+    # Close all file handles
+    for file_handle in files.values():
+        try:
+            file_handle.close()
+        except:
+            pass
 
 
 def process_client(client_socket):
@@ -435,27 +456,28 @@ def process_client(client_socket):
                 client_socket.close()
                 break
             raise ValueError(f'unknown method: {data["method"]}')
-    except Exception:
+    except Exception as e:
+        logging.error(f'Exception in process_client: {e}')
         traceback.print_exc()
         control['stop'] = True
         thread.join()
         client_socket.close()
-        print('thread stopped')
-        print()
+        logging.info('thread stopped')
 
 
 def main():
     PORT = int(sys.argv[1])
     assert PORT, 'port not provided'
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind(('localhost', PORT))
     server_socket.listen()
-    print('listening')
+    logging.info('listening')
     while True:
         client_socket, address = server_socket.accept()
-        print(f'accepted connection from {address}')
+        logging.info(f'accepted connection from {address}')
         process_client(client_socket.makefile('rw'))
-        print('finished')
+        logging.info('finished')
 
 if __name__ == '__main__':
     main()
