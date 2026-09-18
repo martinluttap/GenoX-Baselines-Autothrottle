@@ -1,6 +1,0 @@
-{
-  "default_strategy": {
-    "type": "const",
-    "param": 0
-  }
-}
